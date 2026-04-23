@@ -1,1 +1,44 @@
 
+name: LineageOS 17.1 Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential curl flex g++-multilib gcc-multilib git gnupg gperf libncurses5-dev libssl-dev libxml2-utils lzop openjdk-8-jdk python3 python3-pip unzip zip zlib1g-dev
+
+      - name: Sync LineageOS source
+        run: |
+          mkdir lineage
+          cd lineage
+          repo init -u https://github.com/LineageOS/android.git -b lineage-17.1
+          repo sync -c --no-clone-bundle --optimized-fetch --prune
+
+      - name: Add device tree, vendor, kernel
+        run: |
+          cd lineage
+          git clone https://github.com/LineageOS/android_device_samsung_j7elte -b lineage-17.1 device/samsung/j7elte
+          git clone https://github.com/TheMuppets/proprietary_vendor_samsung -b lineage-17.1 vendor/samsung
+          git clone https://github.com/SandWichEater9211/Sandwich-Kernel kernel/samsung/exynos7580
+
+      - name: Build ROM
+        run: |
+          cd lineage
+          source build/envsetup.sh
+          lunch lineage_j7elte-userdebug
+          m bacon -j$(nproc)
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: lineageos-j7elte
+          path: lineage/out/target/product/j7elte/*.zip
